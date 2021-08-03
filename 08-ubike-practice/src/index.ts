@@ -1,8 +1,8 @@
-import L, { LayerGroup } from 'leaflet';
 import mapConfig from './map.config';
 import fetchData from './fetchData';
 import { districts } from './districtData';
-import { Districts } from './data';
+import { Districts, UBikeInfo } from './data';
+import UBikeMapFacade from './ubike-map/MapFacade';
 
 const $selectDistrict = <HTMLSelectElement | null>(
   document.getElementById('select-district')
@@ -21,24 +21,31 @@ districts.forEach(d => {
   $selectDistrict.appendChild($optionTag);
 });
 
-const {
-  coordinate,
-  zoomLevel,
-  tileLayerURL,
-  containerID,
-} = mapConfig;
+// const {
+//   coordinate,
+//   zoomLevel,
+//   tileLayerURL,
+//   containerID,
+// } = mapConfig;
 
-fetchData().then(data => {
-  console.log(data);
-});
+// const map = L.map(containerID);
 
-const map = L.map(containerID);
+// map.setView(coordinate, zoomLevel);
 
-map.setView(coordinate, zoomLevel);
+// L.tileLayer(tileLayerURL).addTo(map);
 
-L.tileLayer(tileLayerURL).addTo(map);
+// let markerLayer: LayerGroup;
 
-let markerLayer: LayerGroup;
+const mapFacade = new UBikeMapFacade(
+  mapConfig,
+  function (info: UBikeInfo) {
+    return `
+      <p>${info.regionName} － ${info.stopName}</p>
+      <p>總自行車數：${info.totalBikes}</p>
+      <p>可用自行車數：${info.availableBikes}</p>
+    `;
+  }
+)
 
 let currentDistrict = <Districts>$selectDistrict.value;
 
@@ -51,30 +58,32 @@ function updateUBikeMap(district: Districts): void {
     });
 
     // 2. 將 selectedData 裡面的 UBikeInfo 轉換成 Leaflet Marker
-    const markers = selectedData.map(data => {
-      const marker = new L.Marker(data.latLng);
+    // const markers = selectedData.map(data => {
+    //   const marker = new L.Marker(data.latLng);
 
-      // 顯示 UBike 資料
-      marker.bindTooltip(`
-        <p>${data.regionName} － ${data.stopName}</p>
-        <p>總自行車數：${data.totalBikes}</p>
-        <p>可用自行車數：${data.availableBikes}</p>
-      `);
+    //   // 顯示 UBike 資料
+    //   marker.bindTooltip(`
+    //     <p>${data.regionName} － ${data.stopName}</p>
+    //     <p>總自行車數：${data.totalBikes}</p>
+    //     <p>可用自行車數：${data.availableBikes}</p>
+    //   `);
 
-      marker.on('mouseover', () => {
-        marker.openTooltip();
-      });
+    //   marker.on('mouseover', () => {
+    //     marker.openTooltip();
+    //   });
 
-      marker.on('mouseleave', () => {
-        marker.closeTooltip();
-      });
+    //   marker.on('mouseleave', () => {
+    //     marker.closeTooltip();
+    //   });
 
-      return marker;
-    });
+    //   return marker;
+    // });
 
     // 3. 將所有的 Marker 丟進 LayerGroup 並新增到地圖
-    markerLayer = L.layerGroup(markers);
-    markerLayer.addTo(map);
+    // markerLayer = L.layerGroup(markers);
+    // markerLayer.addTo(map);
+
+    mapFacade.pinStops(selectedData);
   });
 }
 
@@ -88,7 +97,8 @@ $selectDistrict.addEventListener('change', (event) => {
   currentDistrict = <Districts>value;
 
   // 2. 將原本的 Marker 除掉
-  markerLayer.remove();
+  // markerLayer.remove();
+  mapFacade.clearStops();
 
   // 3. 更新地圖
   updateUBikeMap(currentDistrict);
